@@ -1,6 +1,6 @@
 # .github/workflows/daily-refresh.yml
 # GitHub Actions Workflow untuk auto-refresh data harian
-# Trigger: Setiap hari jam 10 pagi (UTC+7 = 03:00 UTC)
+# Trigger: Setiap hari jam 11 pagi (UTC+7 = 03:00 UTC)
 
 name: Daily Data Refresh
 
@@ -8,7 +8,7 @@ on:
   schedule:
     # Cron syntax: minute hour * * day_of_week
     # 03:00 UTC = 10:00 WIB (UTC+7)
-    - cron: '0 3 * * 0-4'  # Senin-Jumat
+    - cron: '30 3 * * 0-4'  # Senin-Jumat
   
   # Allow manual trigger dari GitHub UI
   workflow_dispatch:
