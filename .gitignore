@@ -1,0 +1,116 @@
+# .gitignore - Exclude sensitive dan unnecessary files dari GitHub
+
+# ========== CREDENTIALS & ENVIRONMENT ==========
+# Local environment variables dan service account keys (IMPORTANT!)
+.env
+.env.local
+.env.*.local
+chatbot-rag-service.json
+*-service.json
+*-key.json
+credentials/
+secrets/
+
+# ========== PYTHON ==========
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ========== VIRTUAL ENVIRONMENT ==========
+venv/
+ENV/
+env/
+.venv
+env.bak/
+venv.bak/
+
+# ========== IDE & EDITOR ==========
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+
+# ========== DATABASE & CACHE ==========
+*.db
+*.sqlite
+*.sqlite3
+tidb_data/
+__pycache__
+
+# ========== LOGS & TEMP FILES ==========
+logs/
+*.log
+*.log.*
+temp/
+tmp/
+*.tmp
+*.bak
+
+# ========== DATA FILES (Jangan commit data real) ==========
+data/real_data/
+*.xlsx
+*.csv
+# Exception: keep dummy data
+!data/dummy_*.csv
+
+# ========== TEST COVERAGE & REPORTS ==========
+htmlcov/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+.tox/
+coverage.xml
+
+# ========== OS SPECIFIC ==========
+.DS_Store
+Thumbs.db
+.AppleDouble
+.LSOverride
+*.swp
+*.swo
+
+# ========== PROJECT SPECIFIC ==========
+# Claude Code local tooling config (not part of the system)
+.claude/
+# Local setup notes (not for GitHub)
+setup_info.txt
+# Private key files (isrgrootx1.pem is a public CA cert, excluded below)
+*.pem
+!isrgrootx1.pem
+*.key
+# Bot state cache
+bot_state.json
+# Chat logs (privacy)
+conversation_logs/
+# Temporary check/extract files
+*_check.txt
+*_extracted.txt
+
+# ========== GitHub Actions ==========
+# .github/workflows/ files sudah OK, commit itu

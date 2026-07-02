@@ -1,0 +1,109 @@
+# .github/workflows/daily-refresh.yml
+# GitHub Actions Workflow untuk auto-refresh data harian
+# Trigger: Setiap hari jam 10 pagi (UTC+7 = 03:00 UTC)
+
+name: Daily Data Refresh
+
+on:
+  schedule:
+    # Cron syntax: minute hour * * day_of_week
+    # 03:00 UTC = 10:00 WIB (UTC+7)
+    - cron: '0 3 * * 0-4'  # Senin-Jumat
+  
+  # Allow manual trigger dari GitHub UI
+  workflow_dispatch:
+
+jobs:
+  refresh-database:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      # Step 2: Setup Python
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      # Step 4: Create .env file dari secrets
+      - name: Create .env file
+        run: |
+          cat > .env << 'EOF'
+          GOOGLE_SHEETS_API_KEY=chatbot-rag-service.json
+          GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }}
+          TIDB_HOST=${{ secrets.TIDB_HOST }}
+          TIDB_PORT=${{ secrets.TIDB_PORT }}
+          TIDB_USER=${{ secrets.TIDB_USER }}
+          TIDB_PASSWORD=${{ secrets.TIDB_PASSWORD }}
+          TIDB_DATABASE=${{ secrets.TIDB_DATABASE }}
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL=gpt-4o-mini
+          OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+          TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+          LOG_LEVEL=INFO
+          DEBUG_MODE=False
+          SCHEDULER_ENABLED=True
+          EOF
+      
+      # Step 5: Create service account JSON file
+      - name: Create service account JSON
+        run: |
+          echo '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > chatbot-rag-service.json
+      
+      # Step 6: Run database initialization
+      - name: Refresh database
+        run: |
+          python src/initialize_db.py
+        env:
+          PYTHONUNBUFFERED: 1
+      
+      # Step 7: Log refresh status
+      - name: Log refresh completion
+        if: success()
+        run: |
+          echo "✓ Database refresh completed successfully"
+          echo "Timestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+      
+      # Step 8: Notify on failure
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "✗ Database refresh failed"
+          echo "Please check logs for details"
+        
+        # Optional: Send notification ke Telegram
+        # - name: Send Telegram notification
+        #   if: failure()
+        #   run: |
+        #     curl -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
+        #       -d chat_id=${{ secrets.ADMIN_CHAT_ID }} \
+        #       -d text="❌ Daily refresh failed. Check logs."
+
+# SETUP INSTRUCTIONS (untuk pertama kali):
+#
+# 1. Di GitHub repository, pergi ke Settings → Secrets and variables → Actions
+#
+# 2. Tambahkan secrets berikut (isi sesuai credentials masing-masing, lihat .env):
+#    - GOOGLE_SPREADSHEET_ID
+#    - TIDB_HOST
+#    - TIDB_PORT
+#    - TIDB_USER
+#    - TIDB_PASSWORD
+#    - TIDB_DATABASE
+#    - OPENAI_API_KEY
+#    - TELEGRAM_BOT_TOKEN
+#    - GOOGLE_SERVICE_ACCOUNT_JSON: [content dari chatbot-rag-service.json]
+#
+# 3. Klik "Run workflow" untuk test manual
+#
+# 4. Monitor di Actions tab untuk melihat logs

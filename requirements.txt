@@ -1,0 +1,51 @@
+# RAG Chatbot - Python Dependencies
+# Project: Perancangan Arsitektur Chatbot Berbasis RAG untuk Akses Informasi Tagihan Pelanggan
+# Author: Hani Handayani, Universitas Widyatama
+
+# Core dependencies
+python-dotenv==1.0.1              # Load environment variables dari .env file
+mysql-connector-python==8.2.0     # Connect ke TiDB (MySQL-compatible)
+
+# Google Sheets API
+google-auth-oauthlib==1.2.0       # Google OAuth authentication
+google-auth-httplib2==0.2.0       # HTTP library untuk Google API
+google-api-python-client==2.107.0 # Google Sheets API client
+
+# Data processing
+pandas==2.1.4                      # Data manipulation dan CSV handling
+numpy==1.26.4                      # Numerical operations
+
+# LLM & Embeddings
+openai==1.14.3                     # OpenAI API (GPT-4o mini, embeddings)
+
+# Telegram Bot
+python-telegram-bot==20.8          # Telegram Bot API wrapper
+
+# Scheduling & Background Tasks
+apscheduler==3.10.4                # Schedule jobs (daily data refresh)
+
+# Vector operations
+scikit-learn==1.4.2                # Cosine similarity untuk vector search
+
+# Utilities
+requests==2.31.0                   # HTTP library
+pyyaml==6.0.1                      # YAML parsing (untuk config)
+python-dateutil==2.8.2             # Date/time utilities
+
+# Development & Testing (optional, uncomment jika develop)
+# pytest==7.4.4                    # Unit testing
+# black==24.1.1                    # Code formatter
+# flake8==7.0.0                    # Code linter
+# mypy==1.8.0                      # Type checking
+
+# Production deployment (optional, untuk nanti)
+# gunicorn==21.2.0                 # WSGI server jika deploy web app
+# supervisor==4.2.5                # Process manager untuk 24/7 bot
+
+#colorlog
+
+# Notes:
+# - Semua versi sudah tested dan stable
+# - Untuk development di laptop Windows/Mac/Linux: semua bisa digunakan
+# - Untuk GitHub Actions: perlu minimal Python 3.9+
+# - Untuk VPS deployment nanti: recommend gunakan Python 3.10+
