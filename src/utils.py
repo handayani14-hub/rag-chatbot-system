@@ -387,6 +387,36 @@ def detect_sheets_from_query(message: str) -> List[str]:
     return detected
 
 
+def is_all_sheets_request(message: str) -> bool:
+    """
+    Deteksi apakah user secara eksplisit minta data dari SEMUA kategori
+    tagihan sekaligus (billper + billdu + billtri digabung), setara dengan
+    klik tombol 'Keseluruhan' pada sheet selector.
+
+    Tanpa fungsi ini, query seperti "semua periode" atau "seluruh kategori"
+    tidak dikenali oleh detect_sheets_from_query() (yang hanya cocok dengan
+    nama sheet spesifik), sehingga jatuh ke selector alih-alih langsung
+    menampilkan data gabungan.
+
+    Returns:
+        True jika query menyebut permintaan untuk semua/seluruh sheet.
+    """
+    if not message:
+        return False
+
+    text = message.lower()
+
+    if "keseluruhan" in text:
+        return True
+
+    all_words = ["semua", "seluruh"]
+    scope_words = [
+        "periode", "kategori", "sheet", "lembar kerja", "tagihan",
+        "jenis tagihan", "data pelanggan",
+    ]
+    return any(a in text for a in all_words) and any(s in text for s in scope_words)
+
+
 # =========================================================================
 # VALIDASI FORMAT SND — Untuk routing query ke pipeline yang tepat
 # =========================================================================

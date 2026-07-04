@@ -27,7 +27,7 @@ from tidb_client import TiDBClient
 from utils import (
     detect_period_reference, detect_query_intent, detect_sheet_from_query,
     detect_sheets_from_query, extract_customer_name_from_query,
-    is_partial_snd, is_snd_format,
+    is_all_sheets_request, is_partial_snd, is_snd_format,
 )
 
 logger = logging.getLogger(__name__)
@@ -607,6 +607,34 @@ class TelegramBotHandlers:
             response   = ""
             query_type = intent
 
+            # === STEP 3.4: S3 (global) — cek referensi periode/bulan di SEMUA jenis query ===
+            # Sistem hanya menyimpan satu periode tagihan aktif. Sebelumnya cek ini hanya
+            # jalan untuk intent "daftar_pelanggan", jadi query non-list seperti "berapa
+            # tagihan saya bulan Januari" lolos ke pipeline_general dan berakhir dengan
+            # jawaban LLM yang generik ("Data tidak tersedia") alih-alih penjelasan periode.
+            current_period = Config.CURRENT_DATA_PERIOD
+            period_ref = detect_period_reference(teks)
+            if period_ref and period_ref.lower() != current_period.lower():
+                resp_s3 = (
+                    f"⚠️ <b>Data periode {period_ref} tidak tersedia</b>\n\n"
+                    f"Sistem saat ini hanya menyimpan data tagihan periode "
+                    f"<b>{current_period}</b>. Permintaan data bulan "
+                    f"<b>{period_ref}</b> tidak dapat dipenuhi karena sistem "
+                    f"hanya menyimpan satu periode tagihan aktif.\n\n"
+                    f"💡 <i>Untuk melihat tagihan periode {current_period}, ketik:\n"
+                    f"'siapa saja pelanggan saya yang belum lunas?'\n"
+                    f"atau gunakan menu 🔍 <b>Cari Pelanggan</b> di bawah.</i>"
+                )
+                self.db.log_conversation(
+                    chat_id=chat_id, sales_code=sales_code,
+                    user_query=teks, bot_response=resp_s3,
+                    response_time_ms=int((time.time() - start_time) * 1000),
+                    query_type="s3_period_unavailable"
+                )
+                await loading.delete()
+                await update.message.reply_text(resp_s3, parse_mode=ParseMode.HTML)
+                return
+
             # === STEP 3.5: Cek referensi pronominal S19 (multi-turn stateless) ===
             # Bot tidak menyimpan konteks percakapan — query seperti "tagihannya",
             # "pelanggan itu" tidak bisa diselesaikan tanpa nama/SND eksplisit
@@ -664,39 +692,16 @@ class TelegramBotHandlers:
                 )
 
             elif intent == "daftar_pelanggan":
-                # --- S3: Cek referensi periode/bulan dalam query ---
-                current_period = Config.CURRENT_DATA_PERIOD
-                period_ref = detect_period_reference(teks)
-
-                if period_ref and period_ref.lower() != current_period.lower():
-                    # Periode berbeda dari data aktif → TOLAK sepenuhnya (jangan tampilkan
-                    # selector karena data yang dikembalikan tetap periode aktif = menyesatkan)
-                    resp_s3 = (
-                        f"⚠️ <b>Data periode {period_ref} tidak tersedia</b>\n\n"
-                        f"Sistem saat ini hanya menyimpan data tagihan periode "
-                        f"<b>{current_period}</b>. Permintaan data bulan "
-                        f"<b>{period_ref}</b> tidak dapat dipenuhi karena sistem "
-                        f"hanya menyimpan satu periode tagihan aktif.\n\n"
-                        f"💡 <i>Untuk melihat tagihan periode {current_period}, ketik:\n"
-                        f"'siapa saja pelanggan saya yang belum lunas?'\n"
-                        f"atau gunakan menu 🔍 <b>Cari Pelanggan</b> di bawah.</i>"
-                    )
-                    self.db.log_conversation(
-                        chat_id=chat_id, sales_code=sales_code,
-                        user_query=teks, bot_response=resp_s3,
-                        response_time_ms=int((time.time() - start_time) * 1000),
-                        query_type="s3_period_unavailable"
-                    )
-                    await loading.delete()
-                    await update.message.reply_text(resp_s3, parse_mode=ParseMode.HTML)
-                    return
+                # Catatan: pengecekan periode (S3) sudah dilakukan secara global di STEP 3.4
+                # sebelum blok routing ini, jadi period_ref di sini (jika ada) sudah pasti
+                # sama dengan current_period.
 
                 # --- S17: Deteksi permintaan data pelanggan yang sudah lunas ---
-                lunas_request_phrases = [
-                    "maupun yang lunas", "termasuk yang lunas", "dan yang lunas",
-                    "yang sudah lunas", "baik yang lunas", "juga yang lunas",
-                ]
-                has_lunas_request = any(k in teks.lower() for k in lunas_request_phrases)
+                # Cek apakah kata "lunas" disebut di luar konteks "belum lunas",
+                # misal "belum lunas maupun lunas", "lunas dan belum lunas", "sudah lunas juga".
+                # Pendekatan ini menangkap variasi frasa alami tanpa perlu daftar frasa tetap.
+                teks_tanpa_belum_lunas = re.sub(r"belum\s+lunas", "", teks.lower())
+                has_lunas_request = bool(re.search(r"\blunas\b", teks_tanpa_belum_lunas))
 
                 # --- S3 (periode sama): auto-route ke BILLPER (tagihan berjalan = bulan tsb) ---
                 # Contoh: "tagihan bulan april" → user minta billper (tagihan berjalan April)
@@ -735,7 +740,35 @@ class TelegramBotHandlers:
                     # Tidak ada referensi periode → alur normal
                     detected_sheets = detect_sheets_from_query(teks)
 
-                    if len(detected_sheets) > 1:
+                    if not detected_sheets and is_all_sheets_request(teks):
+                        # User minta semua kategori sekaligus (mis. "semua periode",
+                        # "seluruh kategori") → setara klik tombol "Keseluruhan",
+                        # jangan tampilkan selector.
+                        response, _, _ = self.rag.pipeline_daftar(
+                            sales_code=sales_code, sheet_name=None
+                        )
+
+                        if has_lunas_request:
+                            try:
+                                lunas_customers = self.db.get_paid_customers(
+                                    sales_code, sheet_name=None
+                                )
+                                if lunas_customers:
+                                    lunas_lines = [
+                                        f"{i}. {c.get('customer_name','?')} - <code>{c.get('snd','-')}</code>"
+                                        for i, c in enumerate(lunas_customers, 1)
+                                    ]
+                                    response += (
+                                        f"\n\n─────────────────────────\n"
+                                        f"✅ <b>PELANGGAN SUDAH LUNAS ({len(lunas_customers)} pelanggan):</b>\n\n"
+                                        + "\n".join(lunas_lines)
+                                    )
+                                else:
+                                    response += "\n\n✅ <i>Tidak ada pelanggan lunas untuk semua kategori.</i>"
+                            except Exception as _e:
+                                logger.warning(f"[BOT] Gagal ambil data lunas: {_e}")
+
+                    elif len(detected_sheets) > 1:
                         # Multi-sheet → gabungkan
                         label_gabung = " + ".join(s.upper() for s in detected_sheets)
                         response, _, _ = self.rag.pipeline_daftar_multi_sheet(
