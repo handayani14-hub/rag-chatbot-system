@@ -4,7 +4,6 @@ Main Bot - Entry point utama Telegram bot Billie
 Jalankan file ini untuk menghidupkan bot: python main_bot.py
 
 Project: RAG Chatbot untuk Akses Informasi Tagihan Pelanggan
-Author: Hani Handayani
 """
 
 import logging

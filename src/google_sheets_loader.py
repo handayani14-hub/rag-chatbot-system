@@ -3,7 +3,6 @@
 Google Sheets Data Loader
 Purpose: Fetch data dari Google Spreadsheet dan normalize
 Project: RAG Chatbot untuk Akses Informasi Tagihan Pelanggan
-Author: Hani Handayani
 """
 
 import pandas as pd

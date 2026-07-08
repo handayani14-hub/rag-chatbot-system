@@ -3,7 +3,6 @@
 Embedding Generator
 Purpose: Generate vector embeddings menggunakan OpenAI API
 Project: RAG Chatbot untuk Akses Informasi Tagihan Pelanggan
-Author: Hani Handayani
 """
 
 import logging
