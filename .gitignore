@@ -77,6 +77,8 @@ data/real_data/
 *.csv
 # Exception: keep dummy data
 !data/dummy_*.csv
+# Exception: keep ground truth evaluation files
+!Ground Truth/Ground_Truth_Evaluasi_Sistem_Billie.xlsx
 
 # ========== TEST COVERAGE & REPORTS ==========
 htmlcov/
